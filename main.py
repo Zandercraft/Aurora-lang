@@ -25,13 +25,17 @@ def interactive_shell():
     print(WELCOME)
 
     # Start the programming loop.
-    while (u := input(f"{AURORA_TEXT}> ")) != "exit":
-        result, error = aurora.evaluate('<stdin>', u)
+    try:
+        while (u := input(f"{AURORA_TEXT}> ")) != "exit":
+            result, error = aurora.evaluate('<stdin>', u)
 
-        if error:
-            print(error.as_string())
-        else:
-            print(result)
+            if error:
+                print(error.as_string())
+            else:
+                print(result)
+    except KeyboardInterrupt:
+        # Handle keyboard interrupts and gracefully shut down.
+        print("^C")  # bump exit message onto newline.
 
     print(f"Thanks for using {AURORA_TEXT}! See you soon!")
 
