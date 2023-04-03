@@ -9,11 +9,10 @@ d88P     aaa    Y88888  888      Y88P    888     Y888888
 -- Copyright © 2023 Zandercraft. All rights reserved. --
 ```
 ## Welcome!
-This is Aurora! It is a high-level interpreted language currently interpreted by Python (however an interpreter should
-be able to be written in any language).
+This is Aurora! It is a high-level interpreted language with it's current interpreter written in Python (however an 
+interpreter should be able to be written in any language).
 
 ## Features
-- Unique syntax
+- Unique and uniform syntax
 - Intuitive writing
 - Error handling
-- 
