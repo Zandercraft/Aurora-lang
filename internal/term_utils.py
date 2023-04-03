@@ -40,13 +40,49 @@ def colour(text: str, variant: Colour):
 
 color = colour  # Alias (for the United States)
 
+
+def point_at(text, pos_start, pos_end):
+    """
+    CREDIT: CodePulse
+    :param text: the text in which to point
+    :param pos_start: starting position in text to point at
+    :param pos_end: ending position in text to point at
+    :return: Pointed text
+    """
+    result = ''
+
+    # Calculate indices
+    idx_start = max(text.rfind('\n', 0, pos_start.idx), 0)
+    idx_end = text.find('\n', idx_start + 1)
+    if idx_end < 0: idx_end = len(text)
+
+    # Generate each line
+    line_count = pos_end.ln - pos_start.ln + 1
+    for i in range(line_count):
+        # Calculate line columns
+        line = text[idx_start:idx_end]
+        col_start = pos_start.col if i == 0 else 0
+        col_end = pos_end.col if i == line_count - 1 else len(line) - 1
+
+        # Append to result
+        result += line + '\n'
+        result += ' ' * col_start + '^' * (col_end - col_start)
+
+        # Re-calculate indices
+        idx_start = idx_end
+        idx_end = text.find('\n', idx_start + 1)
+        if idx_end < 0: idx_end = len(text)
+
+    return result.replace('\t', '')
+
+
 # --- Constants ---
 AURORA_TEXT = f"{colour('A', Colour.CYAN)}" \
-                f"{colour('u', Colour.LIGHT_PURPLE)}" \
-                f"{colour('r', Colour.GREEN)}" \
-                f"{colour('o', Colour.PURPLE)}" \
-                f"{colour('r', Colour.LIGHT_PURPLE)}" \
-                f"{colour('a', Colour.CYAN)}"
+              f"{colour('u', Colour.LIGHT_PURPLE)}" \
+              f"{colour('r', Colour.GREEN)}" \
+              f"{colour('o', Colour.PURPLE)}" \
+              f"{colour('r', Colour.LIGHT_PURPLE)}" \
+              f"{colour('a', Colour.CYAN)}"
 
 COPYRIGHT_NOTICE = "-- Copyright © 2023 Zandercraft. All rights reserved. --"
 
