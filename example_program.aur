@@ -1,0 +1,63 @@
+#      d888888
+#     d88P aaa  888  888  888d88  .d88b.   888d88   8888b.
+#    d88P  aaa  888  888  888P   d88^^88b  888P        88b
+#   d88P   aaa  888  888  888    888  888  888    .d888888
+#  d8888888888  Y88b 888  888    Y88..88P  888    888  888
+# d88P     aaa    Y88888  888      Y88P    888     Y888888
+# -- Copyright © 2023 Zandercraft. All rights reserved. --
+#
+# Purpose: Example of Aurora's basic syntax.
+
+set Ball(
+  struct(
+    x: int,
+    y: int,
+    dx: int | null,
+    dy: int | null
+  )
+)
+
+set Paddle(
+  struct(
+    x: int,
+    y: int,
+    dy: int | null
+  )
+)
+
+set create_ball(
+  fun(() -> Ball:
+    return(Ball(x: 400, y: 300, dx: 2, dy: 2))
+  )
+)
+
+set create_paddle(
+  fun((x: int) -> Paddle:
+    return(Paddle(x: x, y: 250, dy: 0)
+  )
+)
+
+set update_ball(
+  fun((ball: Ball) -> Ball:
+    set ball.x(float(ball.x + 1))
+    set ball.y(float(ball.y + 1))
+    if((ball.x > 255 or ball.y > 255):
+      # Don't let the ball go further than the screen
+      set ball.x(float(ball.x - 1))
+      set ball.y(float(ball.y - 1))
+    ) eli((ball.x < 0 or ball.y < 0):
+      # Don't let the ball go further than the screen
+      set ball.x(float(ball.x + 1))
+      set ball.y(float(ball.y + 1))
+    ) eli(():
+      # Code here to be executed. No conditions means "else".
+    )
+    return(ball)
+  )
+)
+
+# Start execution.
+set ball(create_ball())
+set paddle1(create_paddle(1))
+set paddle2(create_paddle(254))
+update_ball(ball)
