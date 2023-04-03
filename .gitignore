@@ -126,5 +126,5 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# PyCharm
+# Sonarlint
 .idea/sonarlint/
