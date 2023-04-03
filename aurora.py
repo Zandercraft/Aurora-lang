@@ -106,6 +106,7 @@ TT_PLUS = "PLUS"
 TT_MINUS = "MINUS"
 TT_MUL = "MUL"
 TT_DIV = "DIV"
+TT_POW = "POW"
 TT_LPAREN = "LPAREN"
 TT_RPAREN = "RPAREN"
 TT_EOF = "EOF"
@@ -166,6 +167,9 @@ class Lexer:
                 self.advance()
             elif self.current_char == '/':
                 tokens.append(Token(TT_DIV, pos_start=self.pos))
+                self.advance()
+            elif self.current_char == '^':
+                tokens.append(Token(TT_POW, pos_start=self.pos))
                 self.advance()
             elif self.current_char == '(':
                 tokens.append(Token(TT_LPAREN, pos_start=self.pos))
@@ -307,21 +311,15 @@ class Parser:
             return result.failure(InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
-                "Expected '+', '-', '*', or '/'"
+                "Expected '+', '-', '*','/', or '^'"
             ))
         return result
 
-    def factor(self):
+    def atom(self):
         result = ParsedResult()
         token = self.current_token
 
-        if token.type in (TT_PLUS, TT_MINUS):
-            result.register(self.advance())
-            factor = result.register(self.factor())
-            if result.error:
-                return result
-            return result.success(UnaryOperationNode(token, factor))
-        elif token.type in (TT_INT, TT_FLOAT):
+        if token.type in (TT_INT, TT_FLOAT):
             result.register(self.advance())
             return result.success(NumberNode(token))
         elif token.type == TT_LPAREN:
@@ -338,24 +336,46 @@ class Parser:
                     "Expected ')'"
                 ))
 
-        return result.failure(InvalidSyntaxErr(token.pos_start, token.pos_end, "Expected int or float"))
+        return result.failure(InvalidSyntaxErr(
+            token.pos_start,
+            token.pos_end,
+            "Exprected int, float, '+', '-', or '('"
+        ))
+
+    def power(self):
+        return self.binary_operation(self.atom, (TT_POW, ), self.factor)
+
+    def factor(self):
+        result = ParsedResult()
+        token = self.current_token
+
+        if token.type in (TT_PLUS, TT_MINUS):
+            result.register(self.advance())
+            factor = result.register(self.factor())
+            if result.error:
+                return result
+            return result.success(UnaryOperationNode(token, factor))
+
+        return self.power()
 
     def term(self):
-        return self.binary_operation(self.factor, (TT_MUL, TT_DIV))
+        return self.binary_operation(self.factor, (TT_MUL, TT_DIV, TT_POW))
 
     def expr(self):
         return self.binary_operation(self.term, (TT_PLUS, TT_MINUS))
 
-    def binary_operation(self, func, operations):
+    def binary_operation(self, lfunc, operations, rfunc=None):
+        if rfunc is None:
+            rfunc = lfunc
         result = ParsedResult()
-        left = result.register(func())
+        left = result.register(lfunc())
         if result.error:
             return result
 
         while self.current_token.type in operations:
             operation = self.current_token
             result.register(self.advance())
-            right = result.register(func())
+            right = result.register(rfunc())
             if result.error:
                 return result
             left = BinaryOperationNode(left, operation, right)
@@ -405,6 +425,10 @@ class Number:
                 )
             return Number(self.value / other.value).set_context(self.context), None
 
+    def power_of(self, other):
+        if isinstance(other, Number):
+            return Number(self.value ** other.value).set_context(self.context), None
+
     def __repr__(self):
         return str(self.value)
 
@@ -445,12 +469,14 @@ class Interpreter:
 
         if node.operation.type == TT_PLUS:
             result, error = left.added_to(right)
-        if node.operation.type == TT_MINUS:
+        elif node.operation.type == TT_MINUS:
             result, error = left.subtracted_by(right)
-        if node.operation.type == TT_MUL:
+        elif node.operation.type == TT_MUL:
             result, error = left.multiplied_by(right)
-        if node.operation.type == TT_DIV:
+        elif node.operation.type == TT_DIV:
             result, error = left.divided_by(right)
+        elif node.operation.type == TT_POW:
+            result, error = left.power_of(right)
 
         if error:
             return rt_result.failure(error)

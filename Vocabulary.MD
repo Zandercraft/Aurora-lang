@@ -9,9 +9,13 @@ This file sets out the various terms used to describe the
 ```
 expr   : term ((PLUS|MINUS) term)*
 
-term   : factor ((MUL|DIV) factor)*
+term   : factor ((MUL|DIV|POW) factor)*
 
-factor : INT | FLOAT
-       : (PLUS|MINUS) factor
+factor : (PLUS|MINUS) factor
+       : power
+       
+power  : atom (POW factor)*
+
+atom   : INT | FLOAT
        : LPAREN expr RPAREN
 ```
