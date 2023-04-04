@@ -47,6 +47,7 @@ class ExpectedCharErr(Error):
     def __init__(self, pos_start, pos_end, details):
         super().__init__(pos_start, pos_end, 'ExpectedCharacter', details)
 
+
 class InvalidSyntaxErr(Error):
     def __init__(self, pos_start, pos_end, details=''):
         super().__init__(pos_start, pos_end, 'InvalidSyntax', details)
@@ -364,6 +365,7 @@ class IfNode:
         self.else_case = else_case
         self.pos_start = self.cases[0][0].pos_start
         self.pos_end = (self.else_case or self.cases[len(self.cases) - 1][0]).pos_end
+
 
 ####################
 # PARSER RESULT
