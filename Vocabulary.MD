@@ -8,16 +8,21 @@ This file sets out the various terms used to describe the
 ## Main Vocabulary Table
 *Organized by least priority to most priority.*
 ```
-expr   : KEYWORD:set IDENTIFIER EQ expr
-       : term ((PLUS|MINUS) term)*
+expr     : KEYWORD:set IDENTIFIER EQ expr
+         : com-ex ((KEYWORD:AND|KEYWORD:OR) com-ex)*
 
-term   : factor ((MUL|DIV|POW) factor)*
+com-expr : not com-ex
+         : ar-ex ((EE|LT|GT|LTE|GTE) ar-ex)*
 
-factor : (PLUS|MINUS) factor
-       : power
+ar-expr  : term ((PLUS|MINUS) term)*
+
+term     : factor ((MUL|DIV|POW) factor)*
+
+factor   : (PLUS|MINUS) factor
+         : power
        
-power  : atom (POW factor)*
+power    : atom (POW factor)*
 
-atom   : INT|FLOAT|IDENTIFIER
-       : LPAREN expr RPAREN
+atom     : INT|FLOAT|IDENTIFIER
+         : LPAREN expr RPAREN
 ```

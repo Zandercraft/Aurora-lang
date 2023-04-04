@@ -44,6 +44,10 @@ class IllegalCharErr(Error):
         super().__init__(pos_start, pos_end, 'IllegalCharacter', details)
 
 
+class ExpectedCharErr(Error):
+    def __init__(self, pos_start, pos_end, details):
+        super().__init__(pos_start, pos_end, 'ExpectedCharacter', details)
+
 class InvalidSyntaxErr(Error):
     def __init__(self, pos_start, pos_end, details=''):
         super().__init__(pos_start, pos_end, 'InvalidSyntax', details)
@@ -113,12 +117,21 @@ TT_MUL = "MUL"
 TT_DIV = "DIV"
 TT_POW = "POW"
 TT_EQ = "EQ"
+TT_EE = "EE"
+TT_NE = "NE"
+TT_LT = "LT"
+TT_GT = "GT"
+TT_LTE = "LTE"
+TT_GTE = "GTE"
 TT_LPAREN = "LPAREN"
 TT_RPAREN = "RPAREN"
 TT_EOF = "EOF"
 
 KEYWORDS = [
-    'set'
+    'set',
+    'and',
+    'or',
+    'not'
 ]
 
 
@@ -186,14 +199,25 @@ class Lexer:
             elif self.current_char == '^':
                 tokens.append(Token(TT_POW, pos_start=self.pos))
                 self.advance()
-            elif self.current_char == '=':
-                tokens.append(Token(TT_EQ, pos_start=self.pos))
-                self.advance()
             elif self.current_char == '(':
                 tokens.append(Token(TT_LPAREN, pos_start=self.pos))
                 self.advance()
             elif self.current_char == ')':
                 tokens.append(Token(TT_RPAREN, pos_start=self.pos))
+                self.advance()
+            elif self.current_char == '!':
+                token, error = self.make_not_equals()
+                if error:
+                    return [], error
+                tokens.append(token)
+            elif self.current_char == '=':
+                tokens.append(self.make_equals())
+                self.advance()
+            elif self.current_char == '<':
+                tokens.append(self.make_lt())
+                self.advance()
+            elif self.current_char == '>':
+                tokens.append(self.make_gt())
                 self.advance()
             else:
                 pos_start = self.pos.copy()
@@ -234,6 +258,50 @@ class Lexer:
 
         token_type = TT_KEYWORD if id_string in KEYWORDS else TT_IDENTIFIER
         return Token(token_type, id_string, pos_start, self.pos)
+
+    def make_not_equals(self):
+        pos_start = self.pos.copy()
+        self.advance()
+
+        if self.current_char == '=':
+            self.advance()
+            return Token(TT_NE, pos_start=pos_start, pos_end=self.pos), None
+
+        self.advance()
+        return None, ExpectedCharErr(pos_start, self.pos, "'=' after '!'")
+
+    def make_equals(self):
+        token_type = TT_EQ
+        pos_start = self.pos.copy()
+        self.advance()
+
+        if self.current_char == '=':
+            self.advance()
+            token_type = TT_EE
+
+        return Token(token_type, pos_start=pos_start, pos_end=self.pos)
+
+    def make_lt(self):
+        token_type = TT_LT
+        pos_start = self.pos.copy()
+        self.advance()
+
+        if self.current_char == '=':
+            self.advance()
+            token_type = TT_LTE
+
+        return Token(token_type, pos_start=pos_start, pos_end=self.pos)
+
+    def make_gt(self):
+        token_type = TT_GT
+        pos_start = self.pos.copy()
+        self.advance()
+
+        if self.current_char == '=':
+            self.advance()
+            token_type = TT_GTE
+
+        return Token(token_type, pos_start=pos_start, pos_end=self.pos)
 
 
 ####################
@@ -359,7 +427,7 @@ class Parser:
             return result.failure(InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
-                "Expected '+', '-', '*','/', or '^'"
+                "Expected '+', '-', '*', '/', or '^'"
             ))
         return result
 
@@ -417,6 +485,32 @@ class Parser:
     def term(self):
         return self.binary_operation(self.factor, (TT_MUL, TT_DIV, TT_POW))
 
+    def ar_expr(self):
+        return self.binary_operation(self.term, (TT_PLUS, TT_MINUS))
+
+    def com_expr(self):
+        result = ParsedResult()
+
+        if self.current_token.matches(TT_KEYWORD, 'not'):
+            operation = self.current_token
+            result.register_advancement()
+            self.advance()
+
+            node = result.register(self.com_expr())
+            if result.error:
+                return result
+            return result.success(UnaryOperationNode(operation, node))
+
+        node = result.register(self.binary_operation(self.ar_expr, (TT_EE, TT_NE, TT_LT, TT_GT, TT_LTE, TT_GTE)))
+        if result.error:
+            return result.failure(InvalidSyntaxErr(
+                self.current_token.pos_start,
+                self.current_token.pos_end,
+                "Expected int, float, identifier, '+', '-', '(', or 'not'"
+            ))
+
+        return result.success(node)
+
     def expr(self):
         result = ParsedResult()
 
@@ -449,12 +543,12 @@ class Parser:
                 return result
             return result.success(VarAssignNode(var_name, expr))
 
-        node = result.register(self.binary_operation(self.term, (TT_PLUS, TT_MINUS)))
+        node = result.register(self.binary_operation(self.com_expr, ((TT_KEYWORD, "and"), (TT_KEYWORD, "or"))))
         if result.error:
             return result.failure(InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
-                "Expected 'set', int, float, identifier, '+', '-' or '('"
+                "Expected 'set', int, float, identifier, '+', '-', '(', or 'not'"
             ))
         return result.success(node)
 
@@ -466,7 +560,8 @@ class Parser:
         if result.error:
             return result
 
-        while self.current_token.type in operations:
+        while self.current_token.type in operations or \
+                (self.current_token.type, self.current_token.value) in operations:
             operation = self.current_token
             result.register_advancement()
             self.advance()
@@ -523,6 +618,41 @@ class Number:
     def power_of(self, other):
         if isinstance(other, Number):
             return Number(self.value ** other.value).set_context(self.context), None
+
+    def comp_eq(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value == other.value)).set_context(self.context), None
+
+    def comp_ne(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value != other.value)).set_context(self.context), None
+
+    def comp_lt(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value < other.value)).set_context(self.context), None
+
+    def comp_gt(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value > other.value)).set_context(self.context), None
+
+    def comp_lte(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value <= other.value)).set_context(self.context), None
+
+    def comp_gte(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value >= other.value)).set_context(self.context), None
+
+    def comp_and(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value and other.value)).set_context(self.context), None
+
+    def comp_or(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value or other.value)).set_context(self.context), None
+
+    def not_op(self):
+        return Number(1 if self.value == 0 else 0).set_context(self.context), None
 
     def copy(self):
         copy = Number(self.value)
@@ -610,6 +740,7 @@ class Interpreter:
         return result.success(value)
 
     def visit_BinaryOperationNode(self, node, context):
+        result = error = None
         rt_result = RuntimeResult()
         left = rt_result.register(self.visit(node.left_node, context))
         if rt_result.error:
@@ -628,6 +759,22 @@ class Interpreter:
             result, error = left.divided_by(right)
         elif node.operation.type == TT_POW:
             result, error = left.power_of(right)
+        elif node.operation.type == TT_EE:
+            result, error = left.comp_eq(right)
+        elif node.operation.type == TT_NE:
+            result, error = left.comp_ne(right)
+        elif node.operation.type == TT_LT:
+            result, error = left.comp_lt(right)
+        elif node.operation.type == TT_GT:
+            result, error = left.comp_gt(right)
+        elif node.operation.type == TT_LTE:
+            result, error = left.comp_lte(right)
+        elif node.operation.type == TT_GTE:
+            result, error = left.comp_gte(right)
+        elif node.operation.matches(TT_KEYWORD, 'and'):
+            result, error = left.comp_and(right)
+        elif node.operation.matches(TT_KEYWORD, 'or'):
+            result, error = left.comp_or(right)
 
         if error:
             return rt_result.failure(error)
@@ -641,10 +788,12 @@ class Interpreter:
 
         if node.operation.type == TT_MINUS:
             number, error = number.multiplied_by(Number(-1))
+        elif node.operation.matches(TT_KEYWORD, 'not'):
+            number, error = number.not_op()
 
         if error:
             return result.failure(error)
-        return number.set_pos(node.pos_start, node.pos_end)
+        return result.success(number.set_pos(node.pos_start, node.pos_end))
 
 
 ####################
@@ -652,6 +801,8 @@ class Interpreter:
 ####################
 global_symbol_table = SymbolTable()
 global_symbol_table.set("null", Number(0))
+global_symbol_table.set("true", Number(1))
+global_symbol_table.set("false", Number(0))
 
 
 def evaluate(fn, text):
