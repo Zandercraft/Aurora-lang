@@ -6,8 +6,10 @@ This file sets out the various terms used to describe the
 `*`- zero or more of the thing before it
 
 ## Main Vocabulary Table
+*Organized by least priority to most priority.*
 ```
-expr   : term ((PLUS|MINUS) term)*
+expr   : KEYWORD:set IDENTIFIER EQ expr
+       : term ((PLUS|MINUS) term)*
 
 term   : factor ((MUL|DIV|POW) factor)*
 
@@ -16,6 +18,6 @@ factor : (PLUS|MINUS) factor
        
 power  : atom (POW factor)*
 
-atom   : INT | FLOAT
+atom   : INT|FLOAT|IDENTIFIER
        : LPAREN expr RPAREN
 ```
