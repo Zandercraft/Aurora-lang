@@ -1,0 +1,18 @@
+#      d888888
+#     d88P aaa  888  888  888d88  .d88b.   888d88   8888b.
+#    d88P  aaa  888  888  888P   d88^^88b  888P        88b
+#   d88P   aaa  888  888  888    888  888  888    .d888888
+#  d8888888888  Y88b 888  888    Y88..88P  888    888  888
+# d88P     aaa    Y88888  888      Y88P    888     Y888888
+# -- Copyright © 2023 Zandercraft. All rights reserved. --
+#
+# Purpose: Project dependencies
+# Note: Aurora strives to remain simple and portable by using
+#       only pure Python constructs. All dependencies here are
+#       OPTIONAL and are only used for the purpose of aiding
+#       development. These are only needed if you are changing
+#       or contributing to Aurora.
+
+# Documentation
+sphinx ~= 6.1.3
+sphinx_rtd_theme ~= 1.2.0
