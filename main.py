@@ -31,7 +31,7 @@ def interactive_shell():
 
             if error:
                 print(error.as_string())
-            else:
+            elif result:
                 print(result)
     except KeyboardInterrupt:
         # Handle keyboard interrupts and gracefully shut down.
