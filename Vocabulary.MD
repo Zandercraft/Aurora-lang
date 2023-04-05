@@ -3,30 +3,45 @@ This file sets out the various terms used to describe the
 
 ## Legend
 `|` - or  
-`*`- zero or more of the thing before it
+`*`- zero or more of the thing before it  
+`?` - optional  
 
 ## Main Vocabulary Table
 *Organized by least priority to most priority.*
 ```
-expr     : KEYWORD:set IDENTIFIER EQ expr
-         : com-ex ((KEYWORD:AND|KEYWORD:OR) com-ex)*
+expr       : KEYWORD:set IDENTIFIER EQ expr
+           : com-ex ((KEYWORD:AND|KEYWORD:OR) com-ex)*
 
-com-expr : not com-ex
-         : ar-ex ((EE|LT|GT|LTE|GTE) ar-ex)*
+com-expr   : not com-ex
+           : ar-ex ((EE|LT|GT|LTE|GTE) ar-ex)*
 
-ar-expr  : term ((PLUS|MINUS) term)*
+ar-expr    : term ((PLUS|MINUS) term)*
 
-term     : factor ((MUL|DIV|POW) factor)*
+term       : factor ((MUL|DIV|POW) factor)*
 
-factor   : (PLUS|MINUS) factor
-         : power
+factor     : (PLUS|MINUS) factor
+           : power
        
-power    : atom (POW factor)*
+power      : call (POW factor)*
 
-atom     : INT|FLOAT|IDENTIFIER
-         : LPAREN expr RPAREN
+call       : atom (LPAREN (expr (COMMA expr)*)? RPAREN)?
+
+atom       : INT|FLOAT|IDENTIFIER
+           : LPAREN expr RPAREN
+           : for-expr
+           : while-expr
+           : fun-def
          
-if-expr  : KEYWORD:if expr KEYWORD:then expr
-           (KEYWORD:eli expr KEYWORD:then expr)*
-           (KEYWORD:el expr)
+if-expr    : KEYWORD:if expr KEYWORD:then expr
+             (KEYWORD:eli expr KEYWORD:then expr)?*
+             (KEYWORD:el expr)?
+           
+for-expr   : KEYWORD:for IDENTIFIER EQ expr KEYWORD:TO expr
+              (KEYWORD:step expr)? KEYWORD:then expr
+
+while-expr : KEYWORD:while expr KEYWORD then expr
+
+fun-def    : KEYWORD:fun IDENTIFIER?
+              LPAREN (IDENTIFIER (COMMA IDENTIFIER)*)? RPAREN
+              ARROW expr
 ```
