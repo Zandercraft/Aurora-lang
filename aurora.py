@@ -13,6 +13,7 @@ Purpose: Main implementation of Aurora
 import string
 from exceptions import core as exceptions
 from internal import nodes
+import internal.types as types
 
 ####################
 # CONSTANTS
@@ -868,282 +869,6 @@ class Parser:
 
 
 ####################
-# VALUES
-####################
-class Type:
-    def __init__(self):
-        self.pos_start = None
-        self.pos_end = None
-        self.context = None
-
-    def set_pos(self, pos_start=None, pos_end=None):
-        self.pos_start = pos_start
-        self.pos_end = pos_end
-        return self
-
-    def set_context(self, context=None):
-        self.context = context
-        return self
-
-    def added_to(self, other):
-        return None, self.illegal_operation(other)
-
-    def subtracted_by(self, other):
-        return None, self.illegal_operation(other)
-
-    def multiplied_by(self, other):
-        return None, self.illegal_operation(other)
-
-    def divided_by(self, other):
-        return None, self.illegal_operation(other)
-
-    def power_of(self, other):
-        return None, self.illegal_operation(other)
-
-    def comp_eq(self, other):
-        return None, self.illegal_operation(other)
-
-    def comp_ne(self, other):
-        return None, self.illegal_operation(other)
-
-    def comp_lt(self, other):
-        return None, self.illegal_operation(other)
-
-    def comp_gt(self, other):
-        return None, self.illegal_operation(other)
-
-    def comp_lte(self, other):
-        return None, self.illegal_operation(other)
-
-    def comp_gte(self, other):
-        return None, self.illegal_operation(other)
-
-    def comp_and(self, other):
-        return None, self.illegal_operation(other)
-
-    def comp_or(self, other):
-        return None, self.illegal_operation(other)
-
-    def not_op(self):
-        return None, self.illegal_operation()
-
-    def is_true(self):
-        return False
-
-    def copy(self):
-        raise Exception("No copy method defined")
-
-    def illegal_operation(self, other=None):
-        if not other:
-            other = self
-        return exceptions.RuntimeErr(
-            self.pos_start,
-            other.pos_end,
-            "Illegal operation",
-            self.context
-        )
-
-    def __repr__(self):
-        return f"<{self.__name__}>"
-
-
-class Number(Type):
-    def __init__(self, value):
-        super().__init__()
-        self.value = value
-
-    def set_pos(self, pos_start=None, pos_end=None):
-        self.pos_start = pos_start
-        self.pos_end = pos_end
-        return self
-
-    def set_context(self, context=None):
-        self.context = context
-        return self
-
-    def added_to(self, other):
-        if isinstance(other, Number):
-            return Number(self.value + other.value).set_context(self.context), None
-        else:
-            return None, Type.illegal_operation(self, other)
-
-    def subtracted_by(self, other):
-        if isinstance(other, Number):
-            return Number(self.value - other.value).set_context(self.context), None
-        else:
-            return None, Type.illegal_operation(self, other)
-
-    def multiplied_by(self, other):
-        if isinstance(other, Number):
-            return Number(self.value * other.value).set_context(self.context), None
-        else:
-            return None, Type.illegal_operation(self, other)
-
-    def divided_by(self, other):
-        if isinstance(other, Number):
-            if other.value == 0:
-                return None, exceptions.RuntimeErr(
-                    other.pos_start,
-                    other.pos_end,
-                    "Division by zero",
-                    self.context
-                )
-            return Number(self.value / other.value).set_context(self.context), None
-        else:
-            return None, Type.illegal_operation(self, other)
-
-    def power_of(self, other):
-        if isinstance(other, Number):
-            return Number(self.value ** other.value).set_context(self.context), None
-        else:
-            return None, Type.illegal_operation(self, other)
-
-    def comp_eq(self, other):
-        if isinstance(other, Number):
-            return Number(int(self.value == other.value)).set_context(self.context), None
-        else:
-            return None, Type.illegal_operation(self, other)
-
-    def comp_ne(self, other):
-        if isinstance(other, Number):
-            return Number(int(self.value != other.value)).set_context(self.context), None
-        else:
-            return None, Type.illegal_operation(self, other)
-
-    def comp_lt(self, other):
-        if isinstance(other, Number):
-            return Number(int(self.value < other.value)).set_context(self.context), None
-        else:
-            return None, Type.illegal_operation(self, other)
-
-    def comp_gt(self, other):
-        if isinstance(other, Number):
-            return Number(int(self.value > other.value)).set_context(self.context), None
-        else:
-            return None, Type.illegal_operation(self, other)
-
-    def comp_lte(self, other):
-        if isinstance(other, Number):
-            return Number(int(self.value <= other.value)).set_context(self.context), None
-        else:
-            return None, Type.illegal_operation(self, other)
-
-    def comp_gte(self, other):
-        if isinstance(other, Number):
-            return Number(int(self.value >= other.value)).set_context(self.context), None
-        else:
-            return None, Type.illegal_operation(self, other)
-
-    def comp_and(self, other):
-        if isinstance(other, Number):
-            return Number(int(self.value and other.value)).set_context(self.context), None
-        else:
-            return None, Type.illegal_operation(self, other)
-
-    def comp_or(self, other):
-        if isinstance(other, Number):
-            return Number(int(self.value or other.value)).set_context(self.context), None
-        else:
-            return None, Type.illegal_operation(self, other)
-
-    def not_op(self):
-        return Number(1 if self.value == 0 else 0).set_context(self.context), None
-
-    def is_true(self):
-        return self.value not in (0, -1)
-
-    def copy(self):
-        copy = Number(self.value)
-        copy.set_pos(self.pos_start, self.pos_end)
-        copy.set_context(self.context)
-        return copy
-
-    def __repr__(self):
-        return str(self.value)
-
-
-class String(Type):
-    def __init__(self, value):
-        super().__init__()
-        self.value = value
-
-    def added_to(self, other):
-        if isinstance(other, String):
-            return String(self.value + other.value).set_context(self.context), None
-        else:
-            return None, Type.illegal_operation(self, other)
-
-    def multiplied_by(self, other):
-        if isinstance(other, Number):
-            return String(self.value * other.value).set_context(self.context), None
-        else:
-            return None, Type.illegal_operation(self, other)
-
-    def is_true(self):
-        return len(self.value) > 0
-
-    def copy(self):
-        copy = String(self.value)
-        copy.set_pos(self.pos_start, self.pos_end)
-        copy.set_context(self.context)
-        return copy
-
-    def __repr__(self):
-        return f'"{self.value}"'
-
-
-class Function(Type):
-    def __init__(self, name, body_node, arg_names):
-        super().__init__()
-        self.name = name or "<unnamed>"
-        self.body_node = body_node
-        self.arg_names = arg_names
-
-    def execute(self, args):
-        result = RuntimeResult()
-        interpreter = Interpreter()
-        fun_context = Context(self.name, self.context, self.pos_start)
-        fun_context.symbol_table = SymbolTable(fun_context.parent.symbol_table)
-
-        if len(args) > len(self.arg_names):
-            return result.failure(exceptions.RuntimeErr(
-                self.pos_start,
-                self.pos_end,
-                f"Too many args ({len(args)}/{len(self.arg_names)}) passed into '{self.name}'",
-                self.context
-            ))
-        elif len(args) < len(self.arg_names):
-            return result.failure(exceptions.RuntimeErr(
-                self.pos_start,
-                self.pos_end,
-                f"Too few args ({len(args)}/{len(self.arg_names)} needed) passed into '{self.name}'",
-                self.context
-            ))
-
-        for i in range(len(args)):
-            arg_name = self.arg_names[i]
-            arg_value = args[i]
-            arg_value.set_context(fun_context)
-            fun_context.symbol_table.set(arg_name, arg_value)
-
-        value = result.register(interpreter.visit(self.body_node, fun_context))
-        if result.error:
-            return result
-
-        return result.success(value)
-
-    def copy(self):
-        copy = Function(self.name, self.body_node, self.arg_names)
-        copy.set_context(self.context)
-        copy.set_pos(self.pos_start, self.pos_end)
-
-        return copy
-
-    def __repr__(self):
-        return f"<Function: '{self.name}'>"
-
-
-####################
 # CONTEXT
 ####################
 class Context:
@@ -1190,12 +915,12 @@ class Interpreter:
 
     def visit_NumberNode(self, node, context):
         return RuntimeResult().success(
-            Number(node.token.value).set_context(context).set_pos(node.pos_start, node.pos_end)
+            types.Number(node.token.value).set_context(context).set_pos(node.pos_start, node.pos_end)
         )
 
     def visit_StringNode(self, node: nodes.StringNode, context: Context):
         return RuntimeResult().success(
-            String(node.token.value).set_context(context).set_pos(node.pos_start, node.pos_end)
+            types.String(node.token.value).set_context(context).set_pos(node.pos_start, node.pos_end)
         )
 
     def visit_VarAccessNode(self, node, context):
@@ -1272,7 +997,7 @@ class Interpreter:
             return result
 
         if node.operation.type == TT_MINUS:
-            number, error = number.multiplied_by(Number(-1))
+            number, error = number.multiplied_by(types.Number(-1))
         elif node.operation.matches(TT_KEYWORD, 'not'):
             number, error = number.not_op()
         else:
@@ -1321,7 +1046,7 @@ class Interpreter:
         if result.error:
             return result
 
-        step_value = Number(1)
+        step_value = types.Number(1)
         if node.step_value_node:
             step_value = result.register(self.visit(node.step_value_node, context))
             if result.error:
@@ -1335,7 +1060,7 @@ class Interpreter:
             def condition(): return i > end_value.value
 
         while condition():
-            context.symbol_table.set(node.var_name_token.value, Number(i))
+            context.symbol_table.set(node.var_name_token.value, types.Number(i))
             i += step_value.value
 
             result.register(self.visit(node.body_node, context))
@@ -1367,7 +1092,7 @@ class Interpreter:
         fun_name = node.var_name_token.value if node.var_name_token else None
         body_node = node.body_node
         arg_names = [arg_name.value for arg_name in node.arg_name_tokens]
-        fun_value = Function(fun_name, body_node, arg_names).set_context(context).set_pos(node.pos_start, node.pos_end)
+        fun_value = types.Function(fun_name, body_node, arg_names).set_context(context).set_pos(node.pos_start, node.pos_end)
 
         if node.var_name_token:
             context.symbol_table.set(fun_name, fun_value)
@@ -1400,9 +1125,9 @@ class Interpreter:
 # RUNNER
 ####################
 global_symbol_table = SymbolTable()
-global_symbol_table.set("null", Number(-1))
-global_symbol_table.set("true", Number(1))
-global_symbol_table.set("false", Number(0))
+global_symbol_table.set("null", types.Number(-1))
+global_symbol_table.set("true", types.Number(1))
+global_symbol_table.set("false", types.Number(0))
 
 
 def evaluate(fn, text):
