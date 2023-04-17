@@ -4,6 +4,23 @@ internal package
 Submodules
 ----------
 
+
+internal.types module
+---------------------------
+
+.. automodule:: internal.types
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+internal.nodes module
+---------------------------
+
+.. automodule:: internal.nodes
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 internal.term\_utils module
 ---------------------------
 
