@@ -11,7 +11,7 @@ Purpose: Main implementation of Aurora
 
 # Imports
 import string
-from internal.term_utils import point_at
+from exceptions import core as exceptions
 
 ####################
 # CONSTANTS
@@ -24,64 +24,16 @@ LETTERS_DIGITS = LETTERS + DIGITS
 ####################
 # ERRORS
 ####################
-class Error:
-    def __init__(self, pos_start, pos_end, error_name, details):
-        self.pos_start = pos_start
-        self.pos_end = pos_end
-        self.error_name = error_name
-        self.details = details
 
-    def as_string(self):
-        result = f'{self.error_name}: {self.details}\n'
-        result += f'File {self.pos_start.fn}, line {self.pos_start.ln + 1}'
-        result += f'\n{point_at(self.pos_start.ftxt, self.pos_start, self.pos_end)}'
-        return result
-
-
-class IllegalCharErr(Error):
-    def __init__(self, pos_start, pos_end, details):
-        super().__init__(pos_start, pos_end, 'IllegalCharacter', details)
-
-
-class ExpectedCharErr(Error):
-    def __init__(self, pos_start, pos_end, details):
-        super().__init__(pos_start, pos_end, 'ExpectedCharacter', details)
-
-
-class InvalidSyntaxErr(Error):
-    def __init__(self, pos_start, pos_end, details=''):
-        super().__init__(pos_start, pos_end, 'InvalidSyntax', details)
-
-
-class RuntimeErr(Error):
-    def __init__(self, pos_start, pos_end, details, context):
-        super().__init__(pos_start, pos_end, 'RuntimeErr', details)
-        self.context = context
-
-    def as_string(self):
-        result = self.generate_traceback()
-        result += f'{self.error_name}: {self.details}\n'
-        result += f'\n{point_at(self.pos_start.ftxt, self.pos_start, self.pos_end)}'
-        return result
-
-    def generate_traceback(self):
-        result = ''
-        pos = self.pos_start
-        context = self.context
-
-        while context:
-            result = f'    File {pos.fn}, line {str(pos.ln + 1)}, in {context.display_name}\n' + result
-            pos = context.parent_entry_pos
-            context = context.parent
-
-        return f"Traceback (most recent call last):\n" \
-               f"{result}"
 
 
 ####################
 # POSITION
 ####################
 class Position:
+    """
+    An advanceable, indexed position within the program.
+    """
     def __init__(self, idx, ln, col, fn, ftxt):
         self.idx = idx
         self.ln = ln
@@ -239,7 +191,7 @@ class Lexer:
                 pos_start = self.pos.copy()
                 char = self.current_char
                 self.advance()
-                return [], IllegalCharErr(pos_start, self.pos, "'" + char + "'")
+                return [], exceptions.IllegalCharErr(pos_start, self.pos, "'" + char + "'")
 
         tokens.append(Token(TT_EOF, pos_start=self.pos))
         return tokens, None
@@ -323,7 +275,7 @@ class Lexer:
             return Token(TT_NE, pos_start=pos_start, pos_end=self.pos), None
 
         self.advance()
-        return None, ExpectedCharErr(pos_start, self.pos, "'=' after '!'")
+        return None, exceptions.ExpectedCharErr(pos_start, self.pos, "'=' after '!'")
 
     def make_equals(self):
         token_type = TT_EQ
@@ -541,7 +493,7 @@ class Parser:
     def parse(self):
         result = self.expr()
         if not result.error and self.current_token.type != TT_EOF:
-            return result.failure(InvalidSyntaxErr(
+            return result.failure(exceptions.InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
                 "Expected '+', '-', '*', '/', or '^'"
@@ -569,7 +521,7 @@ class Parser:
             else:
                 arg_nodes.append(result.register(self.expr()))
                 if result.error:
-                    return result.failure(InvalidSyntaxErr(
+                    return result.failure(exceptions.InvalidSyntaxErr(
                         self.current_token.pos_start,
                         self.current_token.pos_end,
                         "Expected ')', 'set', 'if', 'for', 'while', 'fun', int, float, identifier, '+', '-', '(' or "
@@ -585,7 +537,7 @@ class Parser:
                         return result
 
                 if self.current_token.type != TT_RPAREN:
-                    return result.failure(InvalidSyntaxErr(
+                    return result.failure(exceptions.InvalidSyntaxErr(
                         self.current_token.pos_start,
                         self.current_token.pos_end,
                         "Expected ',' or')'"
@@ -623,7 +575,7 @@ class Parser:
                 self.advance()
                 return result.success(expr)
             else:
-                return result.failure(InvalidSyntaxErr(
+                return result.failure(exceptions.InvalidSyntaxErr(
                     self.current_token.pos_start, self.current_token.pos_end,
                     "Expected ')'"
                 ))
@@ -651,10 +603,10 @@ class Parser:
                 return result
 
             return result.success(fun_def)
-        return result.failure(InvalidSyntaxErr(
+        return result.failure(exceptions.InvalidSyntaxErr(
             token.pos_start,
             token.pos_end,
-            "Exprected int, float, identifier, '+', '-', '(', 'if', 'for', 'while', or 'fun'"
+            "Expected int, float, identifier, '+', '-', '(', 'if', 'for', 'while', or 'fun'"
         ))
 
     def factor(self):
@@ -692,7 +644,7 @@ class Parser:
 
         node = result.register(self.binary_operation(self.ar_expr, (TT_EE, TT_NE, TT_LT, TT_GT, TT_LTE, TT_GTE)))
         if result.error:
-            return result.failure(InvalidSyntaxErr(
+            return result.failure(exceptions.InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
                 "Expected int, float, identifier, '+', '-', '(', or 'not'"
@@ -708,7 +660,7 @@ class Parser:
             self.advance()
 
             if self.current_token.type != TT_IDENTIFIER:
-                return result.failure(InvalidSyntaxErr(
+                return result.failure(exceptions.InvalidSyntaxErr(
                     self.current_token.pos_start,
                     self.current_token.pos_end,
                     "Expected identifier"
@@ -719,7 +671,7 @@ class Parser:
             self.advance()
 
             if self.current_token.type != TT_EQ:
-                return result.failure(InvalidSyntaxErr(
+                return result.failure(exceptions.InvalidSyntaxErr(
                     self.current_token.pos_start,
                     self.current_token.pos_end,
                     "Expected '='"
@@ -734,7 +686,7 @@ class Parser:
 
         node = result.register(self.binary_operation(self.com_expr, ((TT_KEYWORD, "and"), (TT_KEYWORD, "or"))))
         if result.error:
-            return result.failure(InvalidSyntaxErr(
+            return result.failure(exceptions.InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
                 "Expected 'set', int, float, identifier, '+', '-', '(', 'not', 'if', 'for', 'while', or 'fun'"
@@ -747,7 +699,7 @@ class Parser:
         else_case = None
 
         if not self.current_token.matches(TT_KEYWORD, 'if'):
-            return result.failure(InvalidSyntaxErr(
+            return result.failure(exceptions.InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
                 "Expected 'if'"
@@ -761,7 +713,7 @@ class Parser:
             return result
 
         if not self.current_token.matches(TT_KEYWORD, 'then'):
-            return result.failure(InvalidSyntaxErr(
+            return result.failure(exceptions.InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
                 "Expected 'then'"
@@ -784,7 +736,7 @@ class Parser:
                 return result
 
             if not self.current_token.matches(TT_KEYWORD, 'then'):
-                return result.failure(InvalidSyntaxErr(
+                return result.failure(exceptions.InvalidSyntaxErr(
                     self.current_token.pos_start,
                     self.current_token.pos_end,
                     "Expected 'then'"
@@ -811,7 +763,7 @@ class Parser:
         result = ParsedResult()
 
         if not self.current_token.matches(TT_KEYWORD, 'for'):
-            return result.failure(InvalidSyntaxErr(
+            return result.failure(exceptions.InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
                 "Expected 'for'"
@@ -821,7 +773,7 @@ class Parser:
         self.advance()
 
         if self.current_token.type != TT_IDENTIFIER:
-            return result.failure(InvalidSyntaxErr(
+            return result.failure(exceptions.InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
                 "Expected identifier"
@@ -832,7 +784,7 @@ class Parser:
         self.advance()
 
         if self.current_token.type != TT_EQ:
-            return result.failure(InvalidSyntaxErr(
+            return result.failure(exceptions.InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
                 "Expected '='"
@@ -846,7 +798,7 @@ class Parser:
             return result
 
         if not self.current_token.matches(TT_KEYWORD, 'to'):
-            return result.failure(InvalidSyntaxErr(
+            return result.failure(exceptions.InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
                 "Expected 'to'"
@@ -869,7 +821,7 @@ class Parser:
                 return result
 
         if not self.current_token.matches(TT_KEYWORD, 'then'):
-            return result.failure(InvalidSyntaxErr(
+            return result.failure(exceptions.InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
                 "Expected 'then'"
@@ -888,7 +840,7 @@ class Parser:
         result = ParsedResult()
 
         if not self.current_token.matches(TT_KEYWORD, 'while'):
-            return result.failure(InvalidSyntaxErr(
+            return result.failure(exceptions.InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
                 "Expected 'while'"
@@ -902,7 +854,7 @@ class Parser:
             return result
 
         if not self.current_token.matches(TT_KEYWORD, 'then'):
-            return result.failure(InvalidSyntaxErr(
+            return result.failure(exceptions.InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
                 "Expected 'then'"
@@ -921,7 +873,7 @@ class Parser:
         result = ParsedResult()
 
         if not self.current_token.matches(TT_KEYWORD, 'fun'):
-            return result.failure(InvalidSyntaxErr(
+            return result.failure(exceptions.InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
                 "Expected 'fun'"
@@ -937,14 +889,14 @@ class Parser:
             self.advance()
 
             if self.current_token.type != TT_LPAREN:
-                return result.failure(InvalidSyntaxErr(
+                return result.failure(exceptions.InvalidSyntaxErr(
                     self.current_token.pos_start,
                     self.current_token.pos_end,
                     "Expected '('"
                 ))
         else:
             if self.current_token.type != TT_LPAREN:
-                return result.failure(InvalidSyntaxErr(
+                return result.failure(exceptions.InvalidSyntaxErr(
                     self.current_token.pos_start,
                     self.current_token.pos_end,
                     "Expected identifier or '('"
@@ -965,7 +917,7 @@ class Parser:
                 self.advance()
 
                 if self.current_token.type != TT_IDENTIFIER:
-                    return result.failure(InvalidSyntaxErr(
+                    return result.failure(exceptions.InvalidSyntaxErr(
                         self.current_token.pos_start,
                         self.current_token.pos_end,
                         "Expected identifier"
@@ -976,14 +928,14 @@ class Parser:
                 self.advance()
 
             if self.current_token.type != TT_RPAREN:
-                return result.failure(InvalidSyntaxErr(
+                return result.failure(exceptions.InvalidSyntaxErr(
                     self.current_token.pos_start,
                     self.current_token.pos_end,
                     "Expected ')'"
                 ))
         else:
             if self.current_token.type != TT_RPAREN:
-                return result.failure(InvalidSyntaxErr(
+                return result.failure(exceptions.InvalidSyntaxErr(
                     self.current_token.pos_start,
                     self.current_token.pos_end,
                     "Expected identifier or ')'"
@@ -993,7 +945,7 @@ class Parser:
         self.advance()
 
         if self.current_token.type != TT_ARROW:
-            return result.failure(InvalidSyntaxErr(
+            return result.failure(exceptions.InvalidSyntaxErr(
                 self.current_token.pos_start,
                 self.current_token.pos_end,
                 "Expected '->'"
@@ -1102,7 +1054,7 @@ class Type:
     def illegal_operation(self, other=None):
         if not other:
             other = self
-        return RuntimeErr(
+        return exceptions.RuntimeErr(
             self.pos_start,
             other.pos_end,
             "Illegal operation",
@@ -1148,7 +1100,7 @@ class Number(Type):
     def divided_by(self, other):
         if isinstance(other, Number):
             if other.value == 0:
-                return None, RuntimeErr(
+                return None, exceptions.RuntimeErr(
                     other.pos_start,
                     other.pos_end,
                     "Division by zero",
@@ -1272,14 +1224,14 @@ class Function(Type):
         fun_context.symbol_table = SymbolTable(fun_context.parent.symbol_table)
 
         if len(args) > len(self.arg_names):
-            return result.failure(RuntimeErr(
+            return result.failure(exceptions.RuntimeErr(
                 self.pos_start,
                 self.pos_end,
                 f"Too many args ({len(args)}/{len(self.arg_names)}) passed into '{self.name}'",
                 self.context
             ))
         elif len(args) < len(self.arg_names):
-            return result.failure(RuntimeErr(
+            return result.failure(exceptions.RuntimeErr(
                 self.pos_start,
                 self.pos_end,
                 f"Too few args ({len(args)}/{len(self.arg_names)} needed) passed into '{self.name}'",
@@ -1370,7 +1322,7 @@ class Interpreter:
         value = context.symbol_table.get(var_name)
 
         if not value:
-            return result.failure(RuntimeErr(
+            return result.failure(exceptions.RuntimeErr(
                 node.pos_start,
                 node.pos_end,
                 f"'{var_name}' is not defined",
@@ -1490,9 +1442,9 @@ class Interpreter:
         i = start_value.value
 
         if step_value.value >= 0:
-            condition = lambda: i < end_value.value
+            def condition(): return i < end_value.value
         else:
-            condition = lambda: i > end_value.value
+            def condition(): return i > end_value.value
 
         while condition():
             context.symbol_table.set(node.var_name_token.value, Number(i))
