@@ -1,6 +1,17 @@
 exceptions package
 ==================
 
+Submodules
+----------
+
+exceptions.core module
+---------------------------
+
+.. automodule:: exceptions.core
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 
