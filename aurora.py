@@ -12,6 +12,7 @@ Purpose: Main implementation of Aurora
 # Imports
 import string
 from exceptions import core as exceptions
+from internal import nodes
 
 ####################
 # CONSTANTS
@@ -19,12 +20,6 @@ from exceptions import core as exceptions
 DIGITS = "0123456789"
 LETTERS = string.ascii_letters
 LETTERS_DIGITS = LETTERS + DIGITS
-
-
-####################
-# ERRORS
-####################
-
 
 
 ####################
@@ -312,119 +307,6 @@ class Lexer:
 
 
 ####################
-# NODES
-####################
-class NumberNode:
-    def __init__(self, token):
-        self.token = token
-        self.pos_start = self.token.pos_start
-        self.pos_end = self.token.pos_end
-
-    def __repr__(self):
-        return f"{self.token}"
-
-
-class StringNode:
-    def __init__(self, token):
-        self.token = token
-        self.pos_start = self.token.pos_start
-        self.pos_end = self.token.pos_end
-
-    def __repr__(self):
-        return f'{self.token}'
-
-
-class VarAccessNode:
-    def __init__(self, var_name_token):
-        self.var_name_token = var_name_token
-        self.pos_start = self.var_name_token.pos_start
-        self.pos_end = self.var_name_token.pos_end
-
-
-class VarAssignNode:
-    def __init__(self, var_name_token, value_node):
-        self.var_name_token = var_name_token
-        self.value_node = value_node
-        self.pos_start = self.var_name_token.pos_start
-        self.pos_end = self.var_name_token.pos_end
-
-
-class BinaryOperationNode:
-    def __init__(self, left_node, operation, right_node):
-        self.left_node = left_node
-        self.operation = operation
-        self.right_node = right_node
-        self.pos_start = self.left_node.pos_start
-        self.pos_end = self.right_node.pos_end
-
-    def __repr__(self):
-        return f"({self.left_node}, {self.operation}, {self.right_node})"
-
-
-class UnaryOperationNode:
-    def __init__(self, operation, node):
-        self.operation = operation
-        self.node = node
-        self.pos_start = self.operation.pos_start
-        self.pos_end = self.node.pos_end
-
-    def __repr__(self):
-        return f'({self.operation}, {self.node})'
-
-
-class IfNode:
-    def __init__(self, cases, else_case):
-        self.cases = cases
-        self.else_case = else_case
-        self.pos_start = self.cases[0][0].pos_start
-        self.pos_end = (self.else_case or self.cases[len(self.cases) - 1][0]).pos_end
-
-
-class ForNode:
-    def __init__(self, var_name_token, start_value_node, end_value_node, step_value_node, body_node):
-        self.var_name_token = var_name_token
-        self.start_value_node = start_value_node
-        self.end_value_node = end_value_node
-        self.step_value_node = step_value_node
-        self.body_node = body_node
-        self.pos_start = self.var_name_token.pos_start
-        self.pos_end = self.body_node.pos_end
-
-
-class WhileNode:
-    def __init__(self, condition_node, body_node):
-        self.condition_node = condition_node
-        self.body_node = body_node
-        self.pos_start = condition_node.pos_start
-        self.pos_end = body_node.pos_end
-
-
-class FunDefNode:
-    def __init__(self, var_name_token, arg_name_tokens, body_node):
-        self.var_name_token = var_name_token
-        self.arg_name_tokens = arg_name_tokens
-        self.body_node = body_node
-        if self.var_name_token:
-            self.pos_start = self.var_name_token.pos_start
-        elif len(self.arg_name_tokens) > 0:
-            self.pos_start = self.arg_name_tokens[0].pos_start
-        else:
-            self.pos_start = self.body_node.pos_start
-        self.pos_end = self.body_node.pos_end
-
-
-class CallNode:
-    def __init__(self, node_to_call, arg_nodes):
-        self.node_to_call = node_to_call
-        self.arg_nodes = arg_nodes
-        self.pos_start = self.node_to_call.pos_start
-        if len(self.arg_nodes) > 0:
-            self.pos_end = self.arg_nodes[len(self.arg_nodes) - 1].pos_end
-        else:
-            self.pos_end = self.node_to_call.pos_end
-
-
-####################
 # PARSER RESULT
 ####################
 class ParsedResult:
@@ -545,7 +427,7 @@ class Parser:
 
                 result.register_advancement()
                 self.advance()
-            return result.success(CallNode(atom, arg_nodes))
+            return result.success(nodes.CallNode(atom, arg_nodes))
         return result.success(atom)
 
     def atom(self):
@@ -555,15 +437,15 @@ class Parser:
         if token.type in (TT_INT, TT_FLOAT):
             result.register_advancement()
             self.advance()
-            return result.success(NumberNode(token))
+            return result.success(nodes.NumberNode(token))
         elif token.type == TT_STRING:
             result.register_advancement()
             self.advance()
-            return result.success(StringNode(token))
+            return result.success(nodes.StringNode(token))
         elif token.type == TT_IDENTIFIER:
             result.register_advancement()
             self.advance()
-            return result.success(VarAccessNode(token))
+            return result.success(nodes.VarAccessNode(token))
         elif token.type == TT_LPAREN:
             result.register_advancement()
             self.advance()
@@ -619,7 +501,7 @@ class Parser:
             factor = result.register(self.factor())
             if result.error:
                 return result
-            return result.success(UnaryOperationNode(token, factor))
+            return result.success(nodes.UnaryOperationNode(token, factor))
 
         return self.power()
 
@@ -640,7 +522,7 @@ class Parser:
             node = result.register(self.com_expr())
             if result.error:
                 return result
-            return result.success(UnaryOperationNode(operation, node))
+            return result.success(nodes.UnaryOperationNode(operation, node))
 
         node = result.register(self.binary_operation(self.ar_expr, (TT_EE, TT_NE, TT_LT, TT_GT, TT_LTE, TT_GTE)))
         if result.error:
@@ -682,7 +564,7 @@ class Parser:
             expr = result.register(self.expr())
             if result.error:
                 return result
-            return result.success(VarAssignNode(var_name, expr))
+            return result.success(nodes.VarAssignNode(var_name, expr))
 
         node = result.register(self.binary_operation(self.com_expr, ((TT_KEYWORD, "and"), (TT_KEYWORD, "or"))))
         if result.error:
@@ -757,7 +639,7 @@ class Parser:
             else_case = result.register(self.expr())
             if result.error:
                 return result
-        return result.success(IfNode(cases, else_case))
+        return result.success(nodes.IfNode(cases, else_case))
 
     def for_expr(self):
         result = ParsedResult()
@@ -834,7 +716,7 @@ class Parser:
         if result.error:
             return result
 
-        return result.success(ForNode(var_name, start_value, end_value, step_value, body))
+        return result.success(nodes.ForNode(var_name, start_value, end_value, step_value, body))
 
     def while_expr(self):
         result = ParsedResult()
@@ -867,7 +749,7 @@ class Parser:
         if result.error:
             return result
 
-        return result.success(WhileNode(condition, body))
+        return result.success(nodes.WhileNode(condition, body))
 
     def fun_def(self):
         result = ParsedResult()
@@ -958,7 +840,7 @@ class Parser:
         if result.error:
             return result
 
-        return result.success(FunDefNode(
+        return result.success(nodes.FunDefNode(
             var_name_token,
             arg_name_tokens,
             node_to_return
@@ -980,7 +862,7 @@ class Parser:
             right = result.register(rfunc())
             if result.error:
                 return result
-            left = BinaryOperationNode(left, operation, right)
+            left = nodes.BinaryOperationNode(left, operation, right)
 
         return result.success(left)
 
@@ -1311,7 +1193,7 @@ class Interpreter:
             Number(node.token.value).set_context(context).set_pos(node.pos_start, node.pos_end)
         )
 
-    def visit_StringNode(self, node: StringNode, context: Context):
+    def visit_StringNode(self, node: nodes.StringNode, context: Context):
         return RuntimeResult().success(
             String(node.token.value).set_context(context).set_pos(node.pos_start, node.pos_end)
         )
@@ -1383,7 +1265,7 @@ class Interpreter:
             return rt_result.failure(error)
         return rt_result.success(result.set_pos(node.pos_start, node.pos_end))
 
-    def visit_UnaryOperationNode(self, node: UnaryOperationNode, context):
+    def visit_UnaryOperationNode(self, node: nodes.UnaryOperationNode, context):
         result = RuntimeResult()
         number = result.register(self.visit(node.node, context))
         if result.error:
@@ -1393,12 +1275,18 @@ class Interpreter:
             number, error = number.multiplied_by(Number(-1))
         elif node.operation.matches(TT_KEYWORD, 'not'):
             number, error = number.not_op()
+        else:
+            return result.failure(exceptions.InvalidSyntaxErr(
+                node.pos_start,
+                node.pos_end,
+                "This unary operation is not valid in this context."
+            ))
 
         if error:
             return result.failure(error)
         return result.success(number.set_pos(node.pos_start, node.pos_end))
 
-    def visit_IfNode(self, node: IfNode, context):
+    def visit_IfNode(self, node: nodes.IfNode, context):
         result = RuntimeResult()
 
         for condition, expr, in node.cases:
@@ -1422,7 +1310,7 @@ class Interpreter:
 
         return result.success(None)
 
-    def visit_ForNode(self, node: ForNode, context: Context):
+    def visit_ForNode(self, node: nodes.ForNode, context: Context):
         result = RuntimeResult()
 
         start_value = result.register(self.visit(node.start_value_node, context))
@@ -1456,7 +1344,7 @@ class Interpreter:
 
         return result.success(None)
 
-    def visit_WhileNode(self, node: WhileNode, context: Context):
+    def visit_WhileNode(self, node: nodes.WhileNode, context: Context):
         result = RuntimeResult()
 
         while True:
@@ -1473,7 +1361,7 @@ class Interpreter:
 
         return result.success(None)
 
-    def visit_FunDefNode(self, node: FunDefNode, context: Context):
+    def visit_FunDefNode(self, node: nodes.FunDefNode, context: Context):
         result = RuntimeResult()
 
         fun_name = node.var_name_token.value if node.var_name_token else None
@@ -1486,7 +1374,7 @@ class Interpreter:
 
         return result.success(fun_value)
 
-    def visit_CallNode(self, node: CallNode, context: Context):
+    def visit_CallNode(self, node: nodes.CallNode, context: Context):
         result = RuntimeResult()
         args = []
 
